@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Dubber</title>
+    <link href="tailwind.min.css" rel="stylesheet">
+    <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4B5563; }
+    </style>
+</head>
+<body class="bg-black text-gray-200 w-[400px] p-4 font-sans">
+
+    <div id="main-content">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-4">
+            <h1 class="text-xl font-bold">Call Dubber</h1>
+            <img src="assistant.gif" alt="Icon" class="w-16 h-16">
+        </div>
+
+        <!-- User Profile Section - Hidden by default -->
+        <div id="user-profile" class="hidden flex items-center justify-between mb-4 p-2 bg-gray-900 rounded-lg">
+            <span id="user-email" class="text-sm font-medium"></span>
+            <button id="signOutButton" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1 px-3 rounded-md transition duration-300">
+                Sign Out
+            </button>
+        </div>
+
+        <!-- Authentication Section -->
+        <div id="auth-section" class="text-center pt-4">
+            <button id="signInButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                Sign in with Google
+            </button>
+        </div>
+
+        <!-- Dubbing Configuration - Hidden by default -->
+        <div id="config-section" class="hidden space-y-4">
+            <!-- Input Languages -->
+            <div>
+                <label class="block mb-1 text-sm font-medium">From (Spoken Languages)</label>
+                <div class="relative">
+                    <button id="dropdownInputSearchButton" class="w-full bg-gray-900 border border-gray-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5 flex justify-between items-center">
+                        <span id="selectedLanguagesDisplay" class="truncate">None</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div id="dropdownInputSearch" class="hidden absolute z-10 w-full bg-gray-900 rounded-lg shadow mt-1 border border-gray-700">
+                        <input type="text" id="inputLanguageSearch" placeholder="Search language" class="w-full p-2 bg-gray-800 border-b border-gray-700 focus:outline-none">
+                        <ul id="checkboxList" class="h-48 px-3 pb-3 overflow-y-auto text-sm">
+                            <!-- Checkboxes will be dynamically inserted here -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Language -->
+            <div>
+                <label class="block mb-1 text-sm font-medium">To (Translated Language)</label>
+                <div class="relative">
+                    <button id="dropdownSearchButton" class="w-full bg-gray-900 border border-gray-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5 flex justify-between items-center">
+                        <span id="selectedOutputLanguageDisplay" class="truncate">Select a language</span>
+                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div id="dropdownSearch" class="hidden absolute z-10 w-full bg-gray-900 rounded-lg shadow mt-1 border border-gray-700">
+                        <input type="text" id="outputLanguageSearch" placeholder="Search language" class="w-full p-2 bg-gray-800 border-b border-gray-700 focus:outline-none">
+                        <ul id="radioList" class="h-48 px-3 pb-3 overflow-y-auto text-sm">
+                           <!-- Radio buttons will be dynamically inserted here -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+             <!-- Voice Selection -->
+            <div>
+                <label class="block mb-1 text-sm font-medium">Voice</label>
+                <div class="relative">
+                    <button id="dropdownVoiceSearchButton" class="w-full bg-gray-900 border border-gray-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5 flex justify-between items-center">
+                        <span id="selectedVoiceDisplay" class="truncate">Select a voice</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div id="dropdownVoiceSearch" class="hidden absolute z-10 w-full bg-gray-900 rounded-lg shadow mt-1 border border-gray-700">
+                        <input type="text" id="inputVoiceSearch" placeholder="Search voice" class="w-full p-2 bg-gray-800 border-b border-gray-700 focus:outline-none">
+                        <ul id="voiceList" class="h-48 px-3 pb-3 overflow-y-auto text-sm">
+                           <!-- Voices will be dynamically inserted here -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center space-x-2 pt-2">
+                <button id="startButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">Start Dubbing</button>
+                <button id="stopButton" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 hidden">Stop Dubbing</button>
+            </div>
+
+            <!-- Status/Error Display -->
+            <div id="status-container" class="pt-2 text-center">
+                 <p id="status-message" class="text-sm text-yellow-400"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="languages.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>

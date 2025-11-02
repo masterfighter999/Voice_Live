@@ -1,0 +1,155 @@
+// background.js (Voice Live API - aligned with official demo)
+
+let websocket = null;
+let isConnected = false;
+const PROXY_HOSTNAME = "witty-plant-0c991730f.1.azurestaticapps.net";
+
+function sendStatusToPopup(message, status, isError = false) {
+    chrome.runtime.sendMessage({
+        type: 'UPDATE_UI_STATUS',
+        message,
+        status,
+        isError
+    });
+}
+
+async function startVoiceLive(config) {
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+        return sendStatusToPopup('A session is already active.', 'started', true);
+    }
+
+    try {
+        sendStatusToPopup('Negotiating with backend...', 'starting');
+
+        // Get the full wsUrl from our proxy
+        const negotiateUrl = `https://${PROXY_HOSTNAME}/api/negotiate`;
+        const response = await fetch(negotiateUrl);
+        if (!response.ok) throw new Error('Negotiation failed: ' + response.status);
+
+        const data = await response.json();
+        const wsUrl = data.url;
+        if (!wsUrl) throw new Error('Negotiation did not return a WebSocket URL.');
+
+        // Connect to Azure Voice Live API
+        websocket = new WebSocket(wsUrl);
+
+        websocket.onopen = () => {
+            isConnected = true;
+            sendStatusToPopup('Connected. Starting session...', 'started');
+
+            // Send session.update immediately
+            websocket.send(JSON.stringify({
+                type: "session.update",
+                session: {
+                    instructions: "You are a helpful AI assistant. Respond quickly and concisely in natural, engaging language. Keep responses brief and conversational.",
+                    modalities: ["audio", "text"],
+                    turn_detection: {
+                        type: "azure_semantic_vad",
+                        threshold: 0.4,
+                        prefix_padding_ms: 300,
+                        silence_duration_ms: 300,
+                        remove_filler_words: true
+                    },
+                    input_audio_noise_reduction: {
+                        type: "azure_deep_noise_suppression"
+                    },
+                    input_audio_echo_cancellation: {
+                        type: "server_echo_cancellation"
+                    },
+                    voice: {
+                        name: config.voiceName || "en-US-Ava:DragonHDLatestNeural",
+                        type: "azure-standard"
+                    },
+                    input_audio_transcription: {
+                        enabled: true,
+                        model: "gpt-4o-mini-realtime-preview",
+                        format: "text"
+                    }
+                },
+                event_id: ""
+            }));
+
+            startAudioCapture();
+        };
+
+        websocket.onmessage = (event) => {
+            let msg;
+            try { msg = JSON.parse(event.data); }
+            catch { return; }
+            // Handle Voice Live API event types as needed
+            if (msg.type === "response.audio.delta" && msg.delta) {
+                chrome.runtime.sendMessage({ type: 'PLAY_AUDIO', payload: msg.delta });
+            }
+            // ...handle more event types if desired...
+        };
+
+        websocket.onerror = (event) => {
+            sendStatusToPopup('WebSocket error', 'stopped', true);
+            stopVoiceLive();
+        };
+
+        websocket.onclose = () => {
+            isConnected = false;
+            stopAudioCapture();
+            websocket = null;
+            sendStatusToPopup('Disconnected.', 'stopped');
+        };
+
+    } catch (err) {
+        sendStatusToPopup('Error: ' + err.message, 'stopped', true);
+        stopVoiceLive();
+    }
+}
+
+function stopVoiceLive() {
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.close();
+    }
+    stopAudioCapture();
+    websocket = null;
+    isConnected = false;
+}
+
+function startAudioCapture() {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]) {
+            chrome.tabCapture.getMediaStreamId({ targetTabId: tabs[0].id }, (streamId) => {
+                if (chrome.runtime.lastError) {
+                    sendStatusToPopup(chrome.runtime.lastError.message, 'stopped', true);
+                    return;
+                }
+                chrome.runtime.sendMessage({ type: 'OFFSCREEN_START', streamId, sampleRate: 24000 });
+            });
+        }
+    });
+}
+
+function stopAudioCapture() {
+    chrome.runtime.sendMessage({ type: 'OFFSCREEN_STOP' });
+}
+
+chrome.runtime.onMessage.addListener((msg) => {
+    (async () => {
+        switch (msg.type) {
+            case 'START_DUBBING':
+                await startVoiceLive(msg.config);
+                break;
+            case 'STOP_DUBBING':
+                stopVoiceLive();
+                break;
+            case 'AUDIO_CHUNK':
+                if (websocket && websocket.readyState === WebSocket.OPEN && isConnected) {
+                    websocket.send(JSON.stringify({
+                        type: 'input_audio_buffer.append',
+                        audio: msg.payload,
+                        event_id: ''
+                    }));
+                }
+                break;
+            case 'OFFSCREEN_ERROR':
+                sendStatusToPopup(`Capture Error: ${msg.message}`, 'stopped', true);
+                stopVoiceLive();
+                break;
+        }
+    })();
+});

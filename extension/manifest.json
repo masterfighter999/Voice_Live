@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "Call Dubber",
+  "version": "1.4",
+  "description": "Capture tab audio (Meet/Zoom/etc.) and send it to Azure for real-time dubbing.",
+  "permissions": [
+    "tabCapture",
+    "activeTab",
+    "scripting",
+    "storage",
+    "identity",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://accounts.google.com/*",
+    "https://www.googleapis.com/*",
+    "https://calm-tree-02546cb0f.1.azurestaticapps.net/*",
+    "https://witty-plant-0c991730f.1.azurestaticapps.net/*",
+    "wss://*.webpubsub.azure.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.png",
+      "32": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
+  "icons": {
+    "16": "icon.png",
+    "32": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "worklet-processor.js",
+        "assistant.gif"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "oauth2": {
+    "client_id": "1048344002670-276epud3qpv32n3vb11m7cp8s5if7erd.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile",
+      "openid"
+    ]
+  }
+}
+
