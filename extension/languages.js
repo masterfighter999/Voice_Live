@@ -1680,6 +1680,91 @@ window.voices = [
 
 
 // languages.js (Updated with saveSelection calls)
+// Add this function at the top of languages.js (before DOMContentLoaded)
+
+/**
+ * Save user selections to Chrome storage
+ * @param {string} key - Storage key (e.g., 'selectedInput', 'selectedOutput', 'selectedVoice')
+ * @param {Object|null} data - Data to save { value, text } or null to clear
+ */
+function saveSelection(key, data) {
+    chrome.storage.local.set({ [key]: data }, () => {
+        if (chrome.runtime.lastError) {
+            console.error(`[saveSelection] Error saving ${key}:`, chrome.runtime.lastError);
+        } else {
+            console.log(`[saveSelection] Saved ${key}:`, data);
+        }
+    });
+}
+
+/**
+ * Load saved selections from Chrome storage and restore UI
+ */
+function loadSavedSelections() {
+    chrome.storage.local.get(['selectedInput', 'selectedOutput', 'selectedVoice'], (result) => {
+        if (chrome.runtime.lastError) {
+            console.error('[loadSavedSelections] Error loading:', chrome.runtime.lastError);
+            return;
+        }
+
+        console.log('[loadSavedSelections] Retrieved from storage:', result);
+
+        // Restore input languages (checkboxes)
+        if (result.selectedInput) {
+            const selectedInputDisplay = document.getElementById('selectedLanguagesDisplay');
+            if (selectedInputDisplay) {
+                selectedInputDisplay.textContent = result.selectedInput.text || 'None';
+                selectedInputDisplay.dataset.value = result.selectedInput.value || '';
+                
+                // Check the corresponding checkboxes
+                const codes = result.selectedInput.value.split(',').filter(c => c);
+                codes.forEach(code => {
+                    const checkbox = document.querySelector(`input[type="checkbox"][value="${code}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+                console.log('[loadSavedSelections] Restored input languages:', codes);
+            }
+        }
+
+        // Restore output language (radio)
+        if (result.selectedOutput) {
+            const selectedOutputDisplay = document.getElementById('selectedOutputLanguageDisplay');
+            if (selectedOutputDisplay) {
+                selectedOutputDisplay.textContent = result.selectedOutput.text;
+                selectedOutputDisplay.dataset.value = result.selectedOutput.value;
+                
+                // Select the corresponding radio button
+                const radio = document.querySelector(`input[type="radio"][value="${result.selectedOutput.value}"]`);
+                if (radio) {
+                    radio.checked = true;
+                    // Trigger voice rendering for this language
+                    renderVoices(result.selectedOutput.value);
+                    console.log('[loadSavedSelections] Restored output language:', result.selectedOutput.text);
+                }
+            }
+        }
+
+        // Restore voice selection (radio)
+        if (result.selectedVoice) {
+            const selectedVoiceDisplay = document.getElementById('selectedVoiceDisplay');
+            if (selectedVoiceDisplay) {
+                selectedVoiceDisplay.textContent = result.selectedVoice.text;
+                selectedVoiceDisplay.dataset.value = result.selectedVoice.value;
+                
+                // Wait a bit for voice list to render, then select the radio
+                setTimeout(() => {
+                    const voiceRadio = document.querySelector(`input[type="radio"][value="${result.selectedVoice.value}"]`);
+                    if (voiceRadio) {
+                        voiceRadio.checked = true;
+                        console.log('[loadSavedSelections] Restored voice:', result.selectedVoice.text);
+                    }
+                }, 150);
+            }
+        }
+    });
+}
+
+// ===== DOM CONTENT LOADED =====
 
 document.addEventListener('DOMContentLoaded', function () {
     console.log('[languages.js] DOMContentLoaded fired');
@@ -1710,6 +1795,8 @@ document.addEventListener('DOMContentLoaded', function () {
         console.error('[languages.js] Missing required DOM elements');
         return;
     }
+
+    // ===== RENDER FUNCTIONS =====
 
     // ✅ Render checkboxes (input languages)
     function renderCheckboxes(filter = '') {
@@ -1750,8 +1837,7 @@ document.addEventListener('DOMContentLoaded', function () {
         selectedInputDisplay.textContent = displayText;
         selectedInputDisplay.dataset.value = selectedCodes.join(',');
 
-        // 🚀 --- SAVE ACTION --- 🚀
-        // This is where we save the input languages selection.
+        // 🚀 SAVE ACTION
         saveSelection('selectedInput', { value: selectedCodes.join(','), text: displayText });
         console.log('[languages.js] Saved input languages:', selectedCodes);
     }
@@ -1787,8 +1873,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 selectedOutputDisplay.textContent = this.dataset.name;
                 selectedOutputDisplay.dataset.value = this.value;
 
-                // 🚀 --- SAVE ACTION --- 🚀
-                // This is where we save the output language selection.
+                // 🚀 SAVE ACTION
                 saveSelection('selectedOutput', { value: this.value, text: this.dataset.name });
                 console.log('[languages.js] Saved output language:', this.dataset.name);
 
@@ -1803,8 +1888,7 @@ document.addEventListener('DOMContentLoaded', function () {
         selectedVoiceDisplay.textContent = 'Select a voice';
         selectedVoiceDisplay.dataset.value = ''; // Clear previous value
         
-        // 🚀 --- SAVE ACTION --- 🚀
-        // Clear any previously saved voice when the language changes.
+        // 🚀 SAVE ACTION - Clear any previously saved voice when the language changes
         saveSelection('selectedVoice', null);
 
         const languageVoicesData = window.voices.find(v => v.languageCode === languageCode);
@@ -1842,15 +1926,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 selectedVoiceDisplay.textContent = this.dataset.name;
                 selectedVoiceDisplay.dataset.value = this.value;
 
-                // 🚀 --- SAVE ACTION --- 🚀
-                // This is where we save the voice selection.
+                // 🚀 SAVE ACTION
                 saveSelection('selectedVoice', { value: this.value, text: this.dataset.name });
                 console.log('[languages.js] Saved voice:', this.dataset.name);
             });
         });
     }
 
-    // --- SEARCH AND TOGGLE LOGIC (Unchanged) ---
+    // Make renderVoices available globally for loadSavedSelections
+    window.renderVoices = renderVoices;
+
+    // ===== SEARCH AND TOGGLE LOGIC =====
     inputSearch.addEventListener('input', () => renderCheckboxes(inputSearch.value));
     outputSearch.addEventListener('input', () => renderRadioButtons(outputSearch.value));
     inputVoiceSearch.addEventListener('input', () => {
@@ -1895,9 +1981,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // --- INITIAL RENDER ---
+    // ===== INITIAL RENDER =====
     renderCheckboxes();
     renderRadioButtons();
     voiceList.innerHTML = '<li class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">Select an output language first.</li>';
-    console.log('[languages.js] All dropdowns initialized');
+    
+    // 🚀 LOAD SAVED SELECTIONS AFTER RENDERING
+    loadSavedSelections();
+    
+    console.log('[languages.js] All dropdowns initialized and saved selections loaded');
 });
